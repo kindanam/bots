@@ -39,10 +39,13 @@ import javax.swing.border.BevelBorder;
 import javax.swing.BoxLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class MainFrame extends JFrame {
 
 	private ScoutDataHolder huntDataHolder;
+	private ScoutWorker huntProcess = null;
 
 	
 	protected void frameInit() {
@@ -82,6 +85,23 @@ public class MainFrame extends JFrame {
 	 * Create the frame.
 	 */
 	public MainFrame() {
+		addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosed(WindowEvent e) {
+				Key.removeHotkey("c", KeyModifier.ALT + KeyModifier.CTRL);
+			}
+			@Override
+			public void windowOpened(WindowEvent e) {
+				Key.addHotkey("c", KeyModifier.ALT + KeyModifier.CTRL, new HotkeyListener() {		
+					@Override
+					public void hotkeyPressed(HotkeyEvent e) {
+						if (huntProcess == null) return;
+						if (huntProcess.isDone()) return;
+						huntProcess.cancel(false);						
+					}
+				});			
+			}
+		});
 		setResizable(false);
 		setBackground(new Color(176, 196, 222));
 		setForeground(new Color(95, 158, 160));
@@ -200,6 +220,12 @@ public class MainFrame extends JFrame {
 		tfTotalGold.setColumns(10);
 		pnlRaids.add(tfTotalGold, "cell 1 6,growx");
 		
+		JPanel pnlTrials = new JPanel();
+		pnlTrials.setBackground(new Color(95, 158, 160));
+		tabbedPane.addTab("Trials", null, pnlTrials, null);
+		pnlTrials.setLayout(new MigLayout("", "[110px,left][110px,grow][70px,center]", "[30px]"));
+		tabbedPane.remove(pnlTrials);
+		
 		JPanel pnlStatus = new JPanel();
 		pnlStatus.setToolTipText("");
 		pnlStatus.setBorder(new BevelBorder(BevelBorder.LOWERED, null, null, null, null));
@@ -208,21 +234,14 @@ public class MainFrame extends JFrame {
 		
 		lblStatus = new JLabel("...");
 		pnlStatus.add(lblStatus);
+		
 		btnHunt.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				huntDataHolder.resetGoldSpend();
 				lblStatus.setText("Scouting...");
-				ScoutWorker huntProcess = new ScoutWorker(huntDataHolder);
+				huntProcess = new ScoutWorker(huntDataHolder);
 				huntProcess.addPropertyChangeListener(new ScoutWorkerPropertyChangeListener());				
 				huntProcess.execute();
-				Key.addHotkey("c", KeyModifier.ALT + KeyModifier.CTRL, new HotkeyListener() {
-					
-					@Override
-					public void hotkeyPressed(HotkeyEvent e) {
-						if (huntProcess.isCancelled()) return;
-						huntProcess.cancel(false);						
-					}
-				});
 			}
 		});			
 		InitMinGloryTextBox();
@@ -239,8 +258,6 @@ public class MainFrame extends JFrame {
 			if (((StateValue)evt.getNewValue()) != StateValue.DONE)
 				return;
 			
-			Key.removeHotkey("c", KeyModifier.ALT + KeyModifier.CTRL);
-
 			java.awt.Toolkit.getDefaultToolkit().beep();
 			
 			switch (huntDataHolder.getHuntResultStatus())
